@@ -5,10 +5,14 @@ import h5py
 import argparse
 import json
 import pathlib
+from os.path import join, dirname
+import logging
 
 from encoding_utils import *
 from feature_spaces import _FEATURE_CONFIG, get_feature_space
 from ridge_utils.ridge import bootstrap_ridge
+from config import  REPO_DIR, EM_DATA_DIR
+
 
 
 if __name__ == "__main__":
@@ -27,6 +31,9 @@ if __name__ == "__main__":
 	parser.add_argument("--singcutoff", type=float, default=1e-10)
 	parser.add_argument("-use_corr", action="store_true")
 	parser.add_argument("-single_alpha", action="store_true")
+	logging.basicConfig(level=logging.INFO)
+
+
 	args = parser.parse_args()
 	globals().update(args.__dict__)
 
@@ -36,6 +43,7 @@ if __name__ == "__main__":
 
 	sessions = list(map(str, args.sessions))
 	with open("em_data/sess_to_story.json", "r") as f:
+
 		sess_to_story = json.load(f) 
 	train_stories, test_stories = [], []
 	for sess in sessions:
