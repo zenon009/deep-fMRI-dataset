@@ -13,11 +13,14 @@ from ridge_utils.ridge import bootstrap_ridge
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
+	# witch subject to use
 	parser.add_argument("--subject", type=str, required=True)
 	parser.add_argument("--feature", type=str, required=True)
+	#how many sessions there are
 	parser.add_argument("--sessions", nargs='+', type=int, default=[1, 2, 3, 4, 5])
 	parser.add_argument("--trim", type=int, default=5)
 	parser.add_argument("--ndelays", type=int, default=4)
+	# nboots is probably the epochs
 	parser.add_argument("--nboots", type=int, default=50)
 	parser.add_argument("--chunklen", type=int, default=40)
 	parser.add_argument("--nchunks", type=int, default=125)
@@ -28,10 +31,10 @@ if __name__ == "__main__":
 	globals().update(args.__dict__)
 
 	fs = " ".join(_FEATURE_CONFIG.keys())
-	assert feature in _FEATURE_CONFIG.keys(), "Available feature spaces:" + fs
-	assert np.amax(sessions) <= 5 and np.amin(sessions) >=1, "1 <= session <= 5"
+	assert args.feature in _FEATURE_CONFIG.keys(), "Available feature spaces:" + fs
+	assert np.amax(args.sessions) <= 5 and np.amin(args.sessions) >=1, "1 <= session <= 5"
 
-	sessions = list(map(str, sessions))
+	sessions = list(map(str, args.sessions))
 	with open("em_data/sess_to_story.json", "r") as f:
 		sess_to_story = json.load(f) 
 	train_stories, test_stories = [], []
@@ -43,25 +46,25 @@ if __name__ == "__main__":
 	assert len(set(train_stories) & set(test_stories)) == 0, "Train - Test overlap!"
 	allstories = list(set(train_stories) | set(test_stories))
 
-	save_location = os.path.join("results", feature, subject)
+	save_location = os.path.join("results", args.feature, args.subject)
 	print("Saving encoding model & results too:", save_location)
 	if not os.path.exists(save_location):
 		os.makedirs(save_location)
 
-	downsampled_feat = get_feature_space(feature, allstories)
+	downsampled_feat = get_feature_space(args.feature, allstories)
 	print("Stimulus & Response parameters:")
-	print("trim: %d, ndelays: %d" % (trim, ndelays))
+	print("trim: %d, ndelays: %d" % (args.trim, args.ndelays))
 
 	# Delayed stimulus
-	delRstim = apply_zscore_and_hrf(train_stories, downsampled_feat, trim, ndelays)
+	delRstim = apply_zscore_and_hrf(train_stories, downsampled_feat, args.trim, args.ndelays)
 	print("delRstim: ", delRstim.shape)
-	delPstim = apply_zscore_and_hrf(test_stories, downsampled_feat, trim, ndelays)
+	delPstim = apply_zscore_and_hrf(test_stories, downsampled_feat, args.trim, args.ndelays)
 	print("delPstim: ", delPstim.shape)
 
 	# Response
-	zRresp = get_response(train_stories, subject)
+	zRresp = get_response(train_stories, args.subject)
 	print("zRresp: ", zRresp.shape)
-	zPresp = get_response(test_stories, subject)
+	zPresp = get_response(test_stories, args.subject)
 	print("zPresp: ", zPresp.shape)
 
 	# Ridge
@@ -69,12 +72,12 @@ if __name__ == "__main__":
 
 	print("Ridge parameters:")
 	print("nboots: %d, chunklen: %d, nchunks: %d, single_alpha: %s, use_corr: %s" % (
-		nboots, chunklen, nchunks, single_alpha, use_corr))
+		args.nboots, args.chunklen, args.nchunks, args.single_alpha, args.use_corr))
 
 	wt, corrs, valphas, bscorrs, valinds = bootstrap_ridge(
-		delRstim, zRresp, delPstim, zPresp, alphas, nboots, chunklen, 
-		nchunks, singcutoff=singcutoff, single_alpha=single_alpha, 
-		use_corr=use_corr)
+		delRstim, zRresp, delPstim, zPresp, alphas, args.nboots, args.chunklen,
+		args.nchunks, singcutoff=args.singcutoff, single_alpha=args.single_alpha,
+		use_corr=args.use_corr)
 
 	# Save regression results.
 	np.savez("%s/weights" % save_location, wt)
